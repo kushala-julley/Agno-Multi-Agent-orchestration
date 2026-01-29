@@ -24,7 +24,7 @@ OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 db = SqliteDb(db_file="agno.db")
 
 # -------------------------------------------------
-# Common agent rules (CRITICAL)
+# Common agent rules
 # -------------------------------------------------
 COMMON_INSTRUCTIONS = [
     "You are an AI agent running inside AgentOS.",
@@ -38,7 +38,7 @@ COMMON_INSTRUCTIONS = [
 ]
 
 # -------------------------------------------------
-# Web Agent (SAFE)
+# Web Agent 
 # -------------------------------------------------
 web_agent = Agent(
     name="Web Research Agent",
