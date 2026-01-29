@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 from pydantic import BaseModel
-
+from agno.os.interfaces.a2a import A2A
 from agno.os import AgentOS
 from agno.agent import Agent
 from agno.db.sqlite import SqliteDb
@@ -104,66 +104,8 @@ general_agent = Agent(
     markdown=True,
 )
 
-# -------------------------------------------------
-# Orchestrator Agent
-# -------------------------------------------------
-orchestrator_agent = Agent(
-    name="Orchestrator Agent",
-    role="Coordinates other agents and produces the final answer",
-    model=Ollama(id="llama3.2", host=OLLAMA_HOST),
-    instructions=[
-        "You do not answer directly without coordination.",
-        "Decide which agents are needed for the task.",
-        "Delegate subtasks to other agents.",
-        "Combine their outputs into a single final answer.",
-    ],
-    db=db,
-    markdown=True,
-)
 
-def run_a2a_workflow(user_query: str) -> str:
-    print("\n=== ORCHESTRATION START ===")
-    print("User query:", user_query)
-
-    web_output = ""
-    finance_output = ""
-
-    if any(word in user_query.lower() for word in ["news", "latest", "today", "recent"]):
-        print("→ Web Agent selected")
-        web_output = web_agent.run(
-            f"Provide factual, concise information for: {user_query}"
-        )
-    else:
-        print("→ Web Agent skipped")
-
-    if any(ticker in user_query.upper() for ticker in ["AAPL", "TSLA", "MSFT", "NVDA", "GOOGL", "AMZN"]):
-        print("→ Finance Agent selected")
-        finance_output = finance_agent.run(
-            f"Use live market data to answer: {user_query}"
-        )
-    else:
-        print("→ Finance Agent skipped")
-
-    print("→ General Agent synthesizing final answer")
-
-    final_answer = general_agent.run(
-        f"""
-        User Question:
-        {user_query}
-
-        Web Agent Response:
-        {web_output}
-
-        Finance Agent Response:
-        {finance_output}
-
-        Combine everything into a clear final answer.
-        """
-    )
-
-    print("=== ORCHESTRATION END ===\n")
-
-    return final_answer
+a2a = A2A(agents=[web_agent, finance_agent, general_agent])
 
 
 
@@ -175,28 +117,10 @@ agent_os = AgentOS(
         web_agent,
         finance_agent,
         general_agent,
-    ]
+    ],
+    interfaces=[a2a],
 )
 
 app = agent_os.get_app()
-# -------------------------------------------------
-# A2A request schema
-# -------------------------------------------------
-
-class A2ARequest(BaseModel):
-    query: str
-
-# -------------------------------------------------
-# A2A endpoint
-# -------------------------------------------------
-@app.post("/a2a")
-async def a2a_endpoint(payload: A2ARequest):
-    return {
-        "response": run_a2a_workflow(payload.query)
-    }
-
-# -------------------------------------------------
-# Run server
-# -------------------------------------------------
 if __name__ == "__main__":
     agent_os.serve(app="app:app", reload=True)
