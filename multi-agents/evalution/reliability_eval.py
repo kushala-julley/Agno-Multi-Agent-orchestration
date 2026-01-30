@@ -30,7 +30,7 @@ def web_agent_reliability():
         name="Web Agent Tool Reliability",
         agent_response=response,
         expected_tool_calls=[
-            "web_search",  # ✅ THIS is the correct tool name in your Agno version
+            "web_search",
         ],
     )
 
