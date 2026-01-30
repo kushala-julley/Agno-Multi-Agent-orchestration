@@ -119,6 +119,8 @@ agent_os = AgentOS(
         general_agent,
     ],
     interfaces=[a2a],
+    db=db,
+    tracing=True,
 )
 
 app = agent_os.get_app()

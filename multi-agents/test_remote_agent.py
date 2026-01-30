@@ -6,13 +6,14 @@ async def main():
         base_url="http://localhost:7777/a2a/agents/finance-agent",
         agent_id="finance-agent",
         protocol="a2a",
+         timeout=120,
     )
 
     response = await finance_agent.arun(
         "What is the current stock price of AAPL?"
     )
 
-    print(response)
+    print(response.content)
 
 if __name__ == "__main__":
     asyncio.run(main())
