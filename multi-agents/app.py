@@ -1,12 +1,66 @@
 import os
+import json
 from dotenv import load_dotenv
 from pydantic import BaseModel
+
+# -------------------------------------------------
+# Monkey-patch to fix Agno's nested JSON parsing bug
+# -------------------------------------------------
+import ast
+import agno.utils.functions as agno_functions
+
+_original_get_function_call = agno_functions.get_function_call
+
+def _parse_nested_value(v):
+    """Try to parse a string that looks like a Python/JSON list or dict."""
+    if not isinstance(v, str):
+        return v
+
+    stripped = v.strip()
+    if not stripped.startswith(('[', '{')):
+        return v
+
+    # Try JSON first (double quotes)
+    try:
+        return json.loads(stripped)
+    except (json.JSONDecodeError, ValueError):
+        pass
+
+    # Try Python literal (single quotes) - handles ['hobbies'] syntax
+    try:
+        return ast.literal_eval(stripped)
+    except (ValueError, SyntaxError):
+        pass
+
+    return v  # Return original if all parsing fails
+
+def _patched_get_function_call(name, arguments=None, call_id=None, functions=None):
+    """Patched version that handles nested JSON/Python strings like topics: '["a"]' or "['a']" """
+    if arguments is not None and arguments != "":
+        try:
+            _args = json.loads(arguments)
+            if isinstance(_args, dict):
+                for k, v in _args.items():
+                    _args[k] = _parse_nested_value(v)
+                arguments = json.dumps(_args)
+        except (json.JSONDecodeError, ValueError):
+            pass  # Let original function handle errors
+
+    return _original_get_function_call(name, arguments, call_id, functions)
+
+agno_functions.get_function_call = _patched_get_function_call
+# -------------------------------------------------
+
+# AgentOS A2A Interface
 from agno.os.interfaces.a2a import A2A
+# AgentOS
 from agno.os import AgentOS
 from agno.agent import Agent
+# AgentOS DB
 from agno.db.sqlite import SqliteDb
+# AgentOS Models
 from agno.models.ollama import Ollama
-
+# AgentOS Tools
 from agno.tools.duckduckgo import DuckDuckGoTools
 from agno.tools.wikipedia import WikipediaTools
 from agno.tools.yfinance import YFinanceTools
@@ -64,6 +118,7 @@ web_agent = Agent(
     db=db,
     add_history_to_context=True,
     markdown=True,
+    update_memory_on_run=True,
 )
 
 finance_agent = Agent(
@@ -86,6 +141,7 @@ finance_agent = Agent(
     db=db,
     add_history_to_context=True,
     markdown=True,
+    update_memory_on_run=True,
 )
 
 # -------------------------------------------------
@@ -102,6 +158,7 @@ general_agent = Agent(
     db=db,
     add_history_to_context=True,
     markdown=True,
+    update_memory_on_run=True,
 )
 
 
